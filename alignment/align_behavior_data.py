@@ -61,7 +61,6 @@ def align_data(data_path,results_path,figure_path,T=8989,
     data_align, rw_loc, rw_prob = align_behavior_data(data)
     data_resampled = resample_behavior_data(data_align,T)
 
-    print(f'reward @{rw_loc} with prob {rw_prob}')
     
     fig,ax = plt.subplots(3,1,sharex=True,figsize=(10,4))
 
@@ -71,10 +70,11 @@ def align_data(data_path,results_path,figure_path,T=8989,
     min_val,max_val = np.nanpercentile(data['position'],(0.1,99.9))
     environment_length = max_val - min_val
 
-    rw_loc_bins = (rw_loc-min_val) / environment_length
-    rw_loc_bins = round(rw_loc_bins*10)/10    ## round to next 5
+    rw_loc = (rw_loc-min_val) / environment_length
+    rw_loc = round(rw_loc*10)/10    ## round to next 5
+    print(f'reward @{rw_loc} with prob {rw_prob}')
 
-    plot_mouse_location(ax[1],data_resampled,rw_loc_bins)
+    plot_mouse_location(ax[1],data_resampled,rw_loc)
     plt.setp(ax[1],ylabel='bin (aligned)')
 
     ax[2].plot(data_resampled['time'],data_resampled['velocity'],'k-',lw=0.5)
@@ -82,7 +82,7 @@ def align_data(data_path,results_path,figure_path,T=8989,
     ax[2].plot(data_resampled['time'],velocity,'r-',lw=0.5)
     plt.setp(ax[2],ylabel='velocity',xlabel='time [s]')
 
-    data_resampled['reward_location'] = rw_loc_bins
+    data_resampled['reward_location'] = rw_loc
     data_resampled['reward_prob'] = rw_prob
 
     with open(results_path, "wb") as output_file:

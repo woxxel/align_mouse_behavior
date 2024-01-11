@@ -8,7 +8,6 @@ dataset="AlzheimerMice_Hayashi"
 
 
 SUBMIT_FILE=./sbatch_submit.sh
-# ON_CLUSTER=true
 
 mice=$(find $datapath_in/$dataset/* -maxdepth 0 -type d -exec basename {} \;)
 # echo "Found mice in dataset $dataset: $mice"
@@ -26,8 +25,7 @@ do
   # s=1
   for session_name in $session_names
   do
-    echo "Running $session_name..."
-    # if $ON_CLUSTER; then
+    echo "Running mouse $mouse, $session_name..."
     cat > $SUBMIT_FILE <<- EOF
 #!/bin/bash
 #SBATCH -A all
@@ -46,13 +44,10 @@ export OPENBLAS_NUM_THREADS=1
 export VECLIB_MAXIMUM_THREADS=1
 export OMP_NUM_THREADS=1
 
-python3 ~/placefields/data_pipeline/preprocessing/align_session.py $datapath_in $datapath_out $dataset $mouse $session_name
+python3 ./align_session.py $datapath_in $datapath_out $dataset $mouse $session_name
 EOF
     sbatch $SUBMIT_FILE
     rm $SUBMIT_FILE
-    # else
-    #   python3 -W ignore ~/placefields/data_pipeline/preprocessing/align_session.py $datapath $dataset $mouse $session_name > /dev/null
-    # fi
 
   done
 done
