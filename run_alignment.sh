@@ -1,12 +1,13 @@
 #!/bin/bash
 
 cpus=1
-datapath='/usr/users/cidbn1/neurodyn'
+# datapath='/usr/users/cidbn1/neurodyn'
+datapath=/scratch/users/$USER/data
 dataset="AlzheimerMice_Hayashi"
 
 
 SUBMIT_FILE="./sbatch_submit.sh"
-ON_CLUSTER=false
+ON_CLUSTER=true
 
 mice=$(find $datapath/$dataset/* -maxdepth 0 -type d -exec basename {} \;)
 # echo "Found mice in dataset $dataset: $mice"
@@ -31,6 +32,7 @@ do
 #SBATCH -A all
 #SBATCH -p medium
 #SBATCH -c $cpus
+#SBATCH -C scratch
 #SBATCH -t 00:05:00
 #SBATCH --mem=1000
 
@@ -45,11 +47,11 @@ export OMP_NUM_THREADS=1
 
 python3 ~/placefields/data_pipeline/preprocessing/align_session.py $datapath $dataset $mouse $session_name
 EOF
-    sbatch $SUBMIT_FILE
-    rm $SUBMIT_FILE
-  else
-    python3 -W ignore ~/placefields/data_pipeline/preprocessing/align_session.py $datapath $dataset $mouse $session_name > /dev/null
-  fi
+      sbatch $SUBMIT_FILE
+      rm $SUBMIT_FILE
+    else
+      python3 -W ignore ~/placefields/data_pipeline/preprocessing/align_session.py $datapath $dataset $mouse $session_name > /dev/null
+    fi
 
   done
 done

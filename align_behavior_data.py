@@ -292,6 +292,8 @@ def resample_behavior_data(data,
         'velocity_ref': np.zeros(T),
         'velocity': None,
         'reward': np.zeros(T,dtype='bool'),
+        'reward_location': None,
+        'reward_prob': None,
     }
     
     fs = np.unique(data['frame'])
@@ -329,7 +331,8 @@ def resample_behavior_data(data,
 
 def plot_mouse_location(ax,data,rw_loc=0):
 
-    loc = data['bin_position'] if 'bin_position' in data.keys() else data['position']
+    # loc = data['bin_position'] if 'bin_position' in data.keys() else data['position']
+    loc = data['position']
     min_val = np.nanmin(loc)
     max_val = np.nanmax(loc)
 
