@@ -7,7 +7,7 @@ import matplotlib.pyplot as plt
 import pickle as pkl
 
 import scipy.io as sio
-from scipy.ndimage import binary_opening, binary_closing, gaussian_filter1d as gauss_filter
+from scipy.ndimage import binary_closing, gaussian_filter1d as gauss_filter
 from scipy.signal import resample
 
 from .align_helper import *
@@ -292,9 +292,8 @@ def resample_behavior_data(data,
         'velocity_ref': np.zeros(T),
         'velocity': None,
         'reward': np.zeros(T,dtype='bool'),
-        'trials': {},
     }
-
+    
     fs = np.unique(data['frame'])
     for f in range(T+1):
         if f in fs:
@@ -315,15 +314,15 @@ def resample_behavior_data(data,
 
     data_resampled['position'] += min_val
 
-    
-    ## define active data points
-    data_resampled['velocity'] = gauss_filter(np.maximum(0,np.diff(data_resampled['position'],prepend=data_resampled['position'][0])),speed_gauss_sd)* 120/loc_dist * 15
-    inactive = np.logical_or(
-        data_resampled['velocity_ref'] <= speed_thr,
-        data_resampled['velocity'] <= speed_thr
-    )
-    inactive = binary_opening(inactive,np.ones(binary_morph_width))
-    data_resampled['active'] = ~inactive
+    # MOVED TO OTHER FILE
+    # ## define active data points
+    # data_resampled['velocity'] = gauss_filter(np.maximum(0,np.diff(data_resampled['position'],prepend=data_resampled['position'][0])),speed_gauss_sd)* 120/loc_dist * 15
+    # inactive = np.logical_or(
+    #     data_resampled['velocity_ref'] <= speed_thr,
+    #     data_resampled['velocity'] <= speed_thr
+    # )
+    # inactive = binary_opening(inactive,np.ones(binary_morph_width))
+    # data_resampled['active'] = ~inactive
     
     return data_resampled
 
