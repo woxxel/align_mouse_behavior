@@ -23,7 +23,7 @@ read -p 'Which mouse should be processed? ' mouse
   do
     echo "Running behavior alignment and resmapling on mouse $mouse, $session_name..."
 
-    if ! $(test -d $datapath_out/$dataset/$mouse/$session_name); then;
+    if ! $(test -d $datapath_out/$dataset/$mouse/$session_name); then
       mkdir -p $datapath_out/$dataset/$mouse/$session_name; 
     fi
 
