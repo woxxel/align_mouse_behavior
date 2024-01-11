@@ -3,35 +3,35 @@
 cpus=1
 datapath_in=/usr/users/cidbn1/neurodyn
 datapath_out=/usr/users/cidbn1/placefields
-# datapath=/scratch/users/$USER/data
 dataset="AlzheimerMice_Hayashi"
-
 
 SUBMIT_FILE=./sbatch_submit.sh
 
 mice=$(find $datapath_in/$dataset/* -maxdepth 0 -type d -exec basename {} \;)
-# echo "Found mice in dataset $dataset: $mice"
-# read -p 'Which mouse should be processed? ' mouse
+echo "Found mice in dataset $dataset: $mice"
+read -p 'Which mouse should be processed? ' mouse
 
-for mouse in $mice
-do
-  # mkdir -p $HOME/data/$mouse
+# for mouse in $mice
+# do
   echo "Processing mouse $mouse"
   mkdir -p $datapath_out/$dataset/$mouse
 
   ## getting all sessions of $mouse to loop through
   session_names=$(find $datapath_in/$dataset/$mouse/Session* -maxdepth 0 -type d -exec basename {} \;)
 
-  # s=1
   for session_name in $session_names
   do
-    echo "Running mouse $mouse, $session_name..."
+    echo "Running behavior alignment and resmapling on mouse $mouse, $session_name..."
+
+    if ! $(test -d $datapath_out/$dataset/$mouse/$session_name); then;
+      mkdir -p $datapath_out/$dataset/$mouse/$session_name; 
+    fi
+
     cat > $SUBMIT_FILE <<- EOF
 #!/bin/bash
 #SBATCH -A all
 #SBATCH -p medium
 #SBATCH -c $cpus
-#SBATCH -C scratch
 #SBATCH -t 00:05:00
 #SBATCH --mem=1000
 
@@ -50,4 +50,4 @@ EOF
     rm $SUBMIT_FILE
 
   done
-done
+# done

@@ -37,9 +37,10 @@ def align_data_on_hpc(datapath_in,datapath_out,dataset,mouse,session,
         # storage_path = f"/scratch/users/{os.environ['USER']}/data/"
         # storage_path = f"/usr/users/cidbn1/placefields/"
 
-        figure_path = f"{datapath_out}/{dataset}/{mouse}/behavior_alignment/aligned_m={mouse}_s={session[-2:]}.png"
+        figure_path = f"{datapath_out}/{dataset}/{mouse}/behavior_alignment"
         if not os.path.exists(figure_path):
             os.makedirs(figure_path)
+        figure_path += f"/aligned_m={mouse}_s={session[-2:]}.png"
 
         results_path = f"{datapath_out}/{dataset}/{mouse}/{session}/aligned_behavior.pkl"
     
@@ -70,9 +71,7 @@ def align_data(data_path,results_path,figure_path,T=8989,
     min_val,max_val = np.nanpercentile(data['position'],(0.1,99.9))
     environment_length = max_val - min_val
 
-    rw_loc = (rw_loc-min_val) / environment_length
-    rw_loc = round(rw_loc*10)/10    ## round to next 5
-    print(f'reward @{rw_loc} with prob {rw_prob}')
+    
 
     plot_mouse_location(ax[1],data_resampled,rw_loc)
     plt.setp(ax[1],ylabel='bin (aligned)')
@@ -82,6 +81,10 @@ def align_data(data_path,results_path,figure_path,T=8989,
     ax[2].plot(data_resampled['time'],velocity,'r-',lw=0.5)
     plt.setp(ax[2],ylabel='velocity',xlabel='time [s]')
 
+    rw_loc = (rw_loc-min_val) / environment_length
+    rw_loc = round(rw_loc*10)/10    ## round to next 5
+    print(f'reward @{rw_loc} with prob {rw_prob}')
+    
     data_resampled['reward_location'] = rw_loc
     data_resampled['reward_prob'] = rw_prob
 
