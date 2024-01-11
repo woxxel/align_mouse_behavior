@@ -2,7 +2,7 @@ import os, time
 
 import pandas as pd
 import numpy as np
-import matplotlib.pyplot as plt
+from matplotlib import pyplot as plt
 
 import pickle as pkl
 
@@ -24,16 +24,42 @@ from .align_helper import *
     #         align_data(server_path,dataset,mouse,s,ssh_alias)
 
 
-def align_data(server_path,dataset,mouse,session,ssh_alias=None,
-        T=8989,nbins=100,
-        rw_delay=0,loc_buffer=2):
+def align_data_on_hpc(datapath_in,datapath_out,dataset,mouse,session,
+                    ssh_alias=None,
+                    T=8989,rw_delay=0):
 
-    session_path = os.path.join(server_path,dataset,mouse,session)
+    session_path = os.path.join(datapath_in,dataset,mouse,session)
     data_path, _ = get_file_path(ssh_alias,session_path)
+
+    if ssh_alias:
+        path = f"./tmp"
+    else:
+        # storage_path = f"/scratch/users/{os.environ['USER']}/data/"
+        # storage_path = f"/usr/users/cidbn1/placefields/"
+
+        figure_path = f"{datapath_out}/{dataset}/{mouse}/behavior_alignment/aligned_m={mouse}_s={session[-2:]}.png"
+        if not os.path.exists(figure_path):
+            os.makedirs(figure_path)
+
+        results_path = f"{datapath_out}/{dataset}/{mouse}/{session}/aligned_behavior.pkl"
+    
+    align_data(data_path,results_path,figure_path,T=T,
+        rw_delay=rw_delay)
+    
+    plt.close()
+
+    # return data_resampled
+
+    # return data,data_align,data_resampled,rw_col,rw_loc
+    #time.sleep(3)
+
+def align_data(data_path,results_path,figure_path,T=8989,
+            rw_delay=0):
+
     data, rw_col = load_behavior_data(data_path,speed_gauss_sd=3)
 
-    data_align, rw_loc, rw_prob = align_behavior_data(data,loc_buffer=loc_buffer)
-    data_resampled = resample_behavior_data(data_align,T,nbins,loc_buffer=loc_buffer,speed_gauss_sd=2,speed_thr=2,binary_morph_width=5)
+    data_align, rw_loc, rw_prob = align_behavior_data(data)
+    data_resampled = resample_behavior_data(data_align,T)
 
     print(f'reward @{rw_loc} with prob {rw_prob}')
     
@@ -42,43 +68,32 @@ def align_data(server_path,dataset,mouse,session,ssh_alias=None,
     plot_mouse_location(ax[0],data,rw_loc)
     plt.setp(ax[0],ylabel='location')
 
-    rw_loc_bins = (rw_loc-np.min(data['position'])) / (np.max(data['position']) - np.min(data['position'])) * nbins
-    rw_loc_bins = round(rw_loc_bins/5)*5    ## round to next 5
+    min_val,max_val = np.nanpercentile(data['position'],(0.1,99.9))
+    environment_length = max_val - min_val
+
+    rw_loc_bins = (rw_loc-min_val) / environment_length
+    rw_loc_bins = round(rw_loc_bins*10)/10    ## round to next 5
 
     plot_mouse_location(ax[1],data_resampled,rw_loc_bins)
     plt.setp(ax[1],ylabel='bin (aligned)')
 
-    ax[2].plot(data_resampled['time'],data_resampled['velocity_ref'],'k-',lw=0.5)
-    # speed2 = gauss_filter(np.maximum(0,np.diff(data_resampled['position'],prepend=data_resampled['position'][0])),2)
-    ax[2].plot(data_resampled['time'],data_resampled['velocity'],'r-',lw=0.5)
+    ax[2].plot(data_resampled['time'],data_resampled['velocity'],'k-',lw=0.5)
+    velocity = gauss_filter(np.maximum(0,np.diff(data_resampled['position'],prepend=data_resampled['position'][0])),2)
+    ax[2].plot(data_resampled['time'],velocity,'r-',lw=0.5)
     plt.setp(ax[2],ylabel='velocity',xlabel='time [s]')
 
     data_resampled['reward_location'] = rw_loc_bins
     data_resampled['reward_prob'] = rw_prob
-    if ssh_alias:
-        path = f"./tmp"
-    else:
-        path = f"/scratch/users/{os.environ['USER']}/data/{dataset}/{mouse}/behavior_alignment"
-        if not os.path.exists(path):
-            os.makedirs(path)
 
-        results_path = f"/scratch/users/{os.environ['USER']}/data/{dataset}/{mouse}/{session}/aligned_behavior.pkl"
-        with open(results_path, "wb") as output_file:
-            pkl.dump(data_resampled, output_file)
-    fileName = f"aligned_m={mouse}_s={session[-2:]}__reward_col={rw_col}_loc={rw_loc}.png"
+    with open(results_path, "wb") as output_file:
+        pkl.dump(data_resampled, output_file)
+
+    # fileName = f"aligned_m={mouse}_s={session[-2:]}__reward_col={rw_col}_loc={rw_loc}.png"
 
     plt.tight_layout()
 
-    plt.savefig(os.path.join(path,fileName),dpi=150)
-    if ssh_alias:
-        plt.show(block=False)
-    else:
-        plt.close()
-    # return data_resampled
-
-    return data,data_align,data_resampled,rw_col,rw_loc
-    #time.sleep(3)
-
+    plt.savefig(figure_path,dpi=150)
+    plt.show(block=False)
 
 
 def load_behavior_data(data_path,
@@ -179,8 +194,9 @@ def load_behavior_data(data_path,
 
 def align_behavior_data(data,
         rw_delay=0,
-        align_tolerance=5,rw_tolerance=5,loc_buffer=2):
+        align_tolerance=5,rw_tolerance=5):
 
+    loc_buffer=2
     rw_tmp = binary_closing(data['reward'],np.ones(100))
 
     ## get positions at which reward is delivered, and where mouse passes through rw location (should be aligned)
@@ -200,7 +216,7 @@ def align_behavior_data(data,
     idx_rwd_prev = 0
     idx_rwpt_prev = 0
 
-    loc_dist = np.max(data['position']) - np.min(data['position']) + loc_buffer
+    # loc_dist = np.max(data['position']) - np.min(data['position']) + loc_buffer
 
     data['time'] -= data['time'][data['recording']][0]
     data_aligned = data.copy()
@@ -265,13 +281,16 @@ def align_behavior_data(data,
 
 
 def resample_behavior_data(data,
-        T=8989,nbins=100,
-        loc_buffer=2,speed_thr=2.,speed_gauss_sd=4,binary_morph_width=5):
+        T=8989):
 
     """
         Function to resample the data to T frames
         This function also creates binned location
     """
+
+
+    loc_buffer=2    ## small non-zero value required to distinguish between start and end when wrapping
+    
     data = data.copy()
     min_val,max_val = np.nanpercentile(data['position'],(0.1,99.9))
 
@@ -289,8 +308,7 @@ def resample_behavior_data(data,
         'frame': np.linspace(1,T,T).astype('int'),
         'time': np.zeros(T),
         'position': np.zeros(T),
-        'velocity_ref': np.zeros(T),
-        'velocity': None,
+        'velocity': np.zeros(T),
         'reward': np.zeros(T,dtype='bool'),
         'reward_location': None,
         'reward_prob': None,
@@ -302,30 +320,21 @@ def resample_behavior_data(data,
             data_resampled['position'][f-1] = np.median(pos_tmp[data['frame']==f])
             data_resampled['time'][f-1] = np.median(data['time'][data['frame']==f])
             data_resampled['reward'][f-1] = np.any(data['reward'][data['frame']==f])
-            data_resampled['velocity_ref'][f-1] = np.mean(data['velocity'][data['frame']==f])
+            data_resampled['velocity'][f-1] = np.mean(data['velocity'][data['frame']==f])
         else:
             ## sometimes, single frames are not covered
             ## in this case, merely copy values from last frame
             data_resampled['position'][f-1] = np.median(pos_tmp[data['frame']==f-1])
             data_resampled['time'][f-1] = np.median(data['time'][data['frame']==f-1])
             data_resampled['reward'][f-1] = np.any(data['reward'][data['frame']==f-1])
-            data_resampled['velocity_ref'][f-1] = np.mean(data['velocity'][data['frame']==f-1])
+            data_resampled['velocity'][f-1] = np.mean(data['velocity'][data['frame']==f-1])
 
     data_resampled['position'] = np.mod(data_resampled['position']+loc_buffer/2,loc_dist)
-    data_resampled['bin_position'] = (data_resampled['position'] / (max_val - min_val) * nbins).astype('int')
+    # data_resampled['bin_position'] = (data_resampled['position'] / (max_val - min_val) * nbins).astype('int')
 
     data_resampled['position'] += min_val
 
-    # MOVED TO OTHER FILE
-    # ## define active data points
-    # data_resampled['velocity'] = gauss_filter(np.maximum(0,np.diff(data_resampled['position'],prepend=data_resampled['position'][0])),speed_gauss_sd)* 120/loc_dist * 15
-    # inactive = np.logical_or(
-    #     data_resampled['velocity_ref'] <= speed_thr,
-    #     data_resampled['velocity'] <= speed_thr
-    # )
-    # inactive = binary_opening(inactive,np.ones(binary_morph_width))
-    # data_resampled['active'] = ~inactive
-    
+
     return data_resampled
 
 
